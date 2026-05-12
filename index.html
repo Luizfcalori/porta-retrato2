@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+  <meta name="apple-mobile-web-app-title" content="Retrato Digital">
+  <link rel="manifest" href="manifest.json">
+  <title>Retrato Digital</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --accent: #e8d5b0;
+      --accent2: #c9a96e;
+      --bg: #0a0a0a;
+      --text: #f0ece4;
+      --muted: rgba(240,236,228,0.45);
+      --transition-speed: 1.2s;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Georgia', 'Times New Roman', serif;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ─── Tela inicial ─── */
+    #welcome {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 2rem;
+      background: var(--bg);
+      z-index: 100;
+      padding: 2rem;
+      transition: opacity 0.6s ease;
+    }
+    #welcome.hidden { opacity: 0; pointer-events: none; }
+
+    .logo-frame {
+      width: 96px; height: 96px;
+      border: 1.5px solid var(--accent2);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .logo-frame::before {
+      content: '';
+      position: absolute; inset: 5px;
+      border: 0.5px solid rgba(201,169,110,0.3);
+      border-radius: 50%;
+    }
+    .logo-icon {
+      font-size: 2.2rem;
+      color: var(--accent);
+    }
+
+    .welcome-title {
+      font-size: clamp(1.6rem, 6vw, 2.4rem);
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      text-align: center;
+    }
+    .welcome-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+      letter-spacing: 0.05em;
+      max-width: 280px;
+      line-height: 1.7;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-weight: 300;
+    }
+
+    .btn-primary {
+      background: transparent;
+      border: 1px solid var(--accent2);
+      color: var(--accent);
+      padding: 0.85rem 2.5rem;
+      font-size: 0.85rem;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-weight: 300;
+      text-transform: uppercase;
+      transition: background 0.3s, color 0.3s;
+      border-radius: 2px;
+    }
+    .btn-primary:active { background: var(--accent2); color: #0a0a0a; }
+
+    .install-hint {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-align: center;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      letter-spacing: 0.04em;
+    }
+
+    /* ─── Slideshow ─── */
+    #slideshow {
+      position: fixed; inset: 0;
+      background: #000;
+      display: none;
+    }
+
+    .slide {
+      position: absolute; inset: 0;
+      opacity: 0;
+      transition: opacity var(--transition-speed) ease-in-out;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .slide.active { opacity: 1; }
+    .slide.prev   { opacity: 0; }
+
+    .slide img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      object-position: center;
+    }
+
+    /* Ken Burns effect */
+    .slide.active img {
+      animation: kenburns 10s ease-in-out forwards;
+    }
+    @keyframes kenburns {
+      0%   { transform: scale(1)    translate(0, 0); }
+      50%  { transform: scale(1.06) translate(-1%, 0.5%); }
+      100% { transform: scale(1.03) translate(0.5%, -1%); }
+    }
+
+    /* ─── Overlay de informações ─── */
+    #overlay {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .overlay-top {
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 120px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+    }
+    .overlay-bottom {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 140px;
+      background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+    }
+
+    /* ─── Controles ─── */
+    #controls {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      z-index: 20;
+      display: flex; flex-direction: column;
+      align-items: center;
+      padding: 1rem 1.5rem 2.5rem;
+      gap: 1rem;
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 0.5s ease;
+    }
+    #controls.hidden { opacity: 0; }
+
+    .progress-bar {
+      width: 100%;
+      height: 1px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 1px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent2);
+      width: 0%;
+      transition: width 0.3s linear;
+    }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      pointer-events: all;
+    }
+
+    .ctrl-btn {
+      background: transparent;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      padding: 0.6rem;
+      font-size: 1.4rem;
+      opacity: 0.75;
+      transition: opacity 0.2s;
+      -webkit-tap-highlight-color: transparent;
+      line-height: 1;
+    }
+    .ctrl-btn:active { opacity: 1; }
+
+    .ctrl-center {
+      display: flex; gap: 1.8rem; align-items: center;
+    }
+
+    .counter {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      min-width: 60px;
+      text-align: center;
+    }
+
+    /* ─── Speed control popup ─── */
+    #speed-popup {
+      position: fixed; bottom: 120px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15,15,15,0.95);
+      border: 0.5px solid rgba(201,169,110,0.3);
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      z-index: 30;
+      display: none;
+      flex-direction: column;
+      gap: 0.75rem;
+      width: 200px;
+    }
+    #speed-popup.visible { display: flex; }
+    .speed-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-align: center;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      text-transform: uppercase;
+    }
+    .speed-options {
+      display: flex; gap: 0.5rem; justify-content: center;
+    }
+    .speed-opt {
+      background: transparent;
+      border: 0.5px solid rgba(201,169,110,0.4);
+      color: var(--muted);
+      padding: 0.4rem 0.75rem;
+      font-size: 0.72rem;
+      cursor: pointer;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      letter-spacing: 0.05em;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .speed-opt.active {
+      border-color: var(--accent2);
+      color: var(--accent);
+      background: rgba(201,169,110,0.1);
+    }
+
+    /* ─── Modo retrato (tela cheia sem controles) ─── */
+    #ambient-clock {
+      position: fixed; top: 1.5rem; right: 1.5rem;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      color: rgba(240,236,228,0.35);
+      z-index: 15;
+      text-align: right;
+      line-height: 1.8;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    #ambient-clock.visible { opacity: 1; }
+
+    /* ─── Estado sem fotos ─── */
+    #no-photos {
+      position: fixed; inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 1.2rem;
+      z-index: 50;
+      padding: 2rem;
+    }
+    #no-photos .no-photos-icon { font-size: 3rem; opacity: 0.3; }
+    #no-photos p {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+      letter-spacing: 0.05em;
+      line-height: 1.7;
+    }
+
+    /* ─── Toast ─── */
+    #toast {
+      position: fixed; bottom: 5rem; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(20,20,20,0.95);
+      border: 0.5px solid rgba(201,169,110,0.2);
+      color: var(--muted);
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      padding: 0.6rem 1.2rem;
+      border-radius: 20px;
+      z-index: 99;
+      opacity: 0;
+      transition: opacity 0.4s;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; }
+
+    /* Input escondido para seleção de arquivos */
+    #file-input { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- Input oculto -->
+<input type="file" id="file-input" accept="image/*" multiple>
+
+<!-- ─── Tela de boas-vindas ─── -->
+<div id="welcome">
+  <div class="logo-frame">
+    <span class="logo-icon">🖼</span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
+    <h1 class="welcome-title">Retrato Digital</h1>
+    <p class="welcome-sub">Transforme sua galeria em uma exposição de arte pessoal</p>
+  </div>
+
+  <button class="btn-primary" id="btn-select-photos">
+    Selecionar Fotos
+  </button>
+
+  <p class="install-hint">
+    Para instalar como app: toque em ⋮ → "Adicionar à tela inicial"
+  </p>
+</div>
+
+<!-- ─── Slideshow ─── -->
+<div id="slideshow"></div>
+
+<!-- ─── Overlay visual ─── -->
+<div id="overlay">
+  <div class="overlay-top"></div>
+  <div class="overlay-bottom"></div>
+</div>
+
+<!-- ─── Relógio ambiente ─── -->
+<div id="ambient-clock">
+  <div id="clock-time"></div>
+  <div id="clock-date"></div>
+</div>
+
+<!-- ─── Controles ─── -->
+<div id="controls">
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress"></div>
+  </div>
+  <div class="controls-row">
+    <button class="ctrl-btn" id="btn-add" title="Adicionar mais fotos">＋</button>
+
+    <div class="ctrl-center">
+      <button class="ctrl-btn" id="btn-prev" title="Anterior">◂</button>
+      <button class="ctrl-btn" id="btn-playpause" title="Pausar/Continuar">⏸</button>
+      <button class="ctrl-btn" id="btn-next" title="Próxima">▸</button>
+    </div>
+
+    <button class="ctrl-btn" id="btn-speed" title="Velocidade">⏱</button>
+  </div>
+  <div class="controls-row" style="justify-content:center;">
+    <span class="counter" id="counter">1 / 1</span>
+  </div>
+</div>
+
+<!-- ─── Speed popup ─── -->
+<div id="speed-popup">
+  <span class="speed-label">Intervalo</span>
+  <div class="speed-options">
+    <button class="speed-opt" data-s="3">3s</button>
+    <button class="speed-opt active" data-s="5">5s</button>
+    <button class="speed-opt" data-s="8">8s</button>
+    <button class="speed-opt" data-s="12">12s</button>
+  </div>
+</div>
+
+<!-- ─── Sem fotos ─── -->
+<div id="no-photos">
+  <div class="no-photos-icon">📂</div>
+  <p>Nenhuma imagem carregada.<br>Toque em + para adicionar fotos.</p>
+</div>
+
+<!-- ─── Toast ─── -->
+<div id="toast"></div>
+
+<script>
+/* ── State ── */
+const state = {
+  photos: [],       // Array de object URLs
+  index: 0,
+  playing: true,
+  interval: 5000,
+  timer: null,
+  progressTimer: null,
+  hideTimer: null,
+  controlsVisible: true,
+};
+
+/* ── Elements ── */
+const $ = id => document.getElementById(id);
+const welcome      = $('welcome');
+const slideshow    = $('slideshow');
+const controls     = $('controls');
+const progress     = $('progress');
+const counter      = $('counter');
+const playpause    = $('btn-playpause');
+const speedPopup   = $('speed-popup');
+const ambientClock = $('ambient-clock');
+const clockTime    = $('clock-time');
+const clockDate    = $('clock-date');
+const noPhotos     = $('no-photos');
+const fileInput    = $('file-input');
+const toast        = $('toast');
+
+/* ── Slides ── */
+let slideEls = [];
+
+function buildSlide(url) {
+  const div = document.createElement('div');
+  div.className = 'slide';
+  const img = document.createElement('img');
+  img.src = url;
+  img.draggable = false;
+  div.appendChild(img);
+  slideshow.appendChild(div);
+  return div;
+}
+
+function showSlide(idx, dir = 1) {
+  slideEls.forEach((el, i) => {
+    el.classList.remove('active', 'prev');
+    if (i === idx) el.classList.add('active');
+  });
+  state.index = idx;
+  counter.textContent = `${idx + 1} / ${state.photos.length}`;
+  startProgress();
+}
+
+function nextSlide() {
+  const next = (state.index + 1) % state.photos.length;
+  showSlide(next, 1);
+}
+
+function prevSlide() {
+  const prev = (state.index - 1 + state.photos.length) % state.photos.length;
+  showSlide(prev, -1);
+}
+
+/* ── Progress bar ── */
+function startProgress() {
+  clearInterval(state.progressTimer);
+  progress.style.transition = 'none';
+  progress.style.width = '0%';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      progress.style.transition = `width ${state.interval}ms linear`;
+      progress.style.width = '100%';
+    });
+  });
+}
+
+/* ── Auto-play ── */
+function startTimer() {
+  clearInterval(state.timer);
+  if (state.playing && state.photos.length > 1) {
+    state.timer = setInterval(nextSlide, state.interval);
+    startProgress();
+  }
+}
+
+function stopTimer() {
+  clearInterval(state.timer);
+  clearInterval(state.progressTimer);
+  progress.style.transition = 'none';
+}
+
+/* ── Load photos ── */
+function loadFiles(files) {
+  const imgs = Array.from(files).filter(f => f.type.startsWith('image/'));
+  if (!imgs.length) { showToast('Nenhuma imagem encontrada'); return; }
+
+  imgs.forEach(f => {
+    const url = URL.createObjectURL(f);
+    state.photos.push(url);
+    slideEls.push(buildSlide(url));
+  });
+
+  showToast(`${imgs.length} foto${imgs.length > 1 ? 's' : ''} adicionada${imgs.length > 1 ? 's' : ''}`);
+
+  if (state.photos.length === imgs.length) {
+    // Primeira carga
+    welcome.classList.add('hidden');
+    setTimeout(() => { welcome.style.display = 'none'; }, 700);
+    slideshow.style.display = 'block';
+    noPhotos.style.display = 'none';
+    showSlide(0);
+    startTimer();
+    scheduleHideControls();
+    ambientClock.classList.add('visible');
+  }
+}
+
+/* ── Controls visibility ── */
+function showControls() {
+  controls.classList.remove('hidden');
+  state.controlsVisible = true;
+  clearTimeout(state.hideTimer);
+  scheduleHideControls();
+}
+
+function scheduleHideControls() {
+  state.hideTimer = setTimeout(() => {
+    controls.classList.add('hidden');
+    speedPopup.classList.remove('visible');
+  }, 4000);
+}
+
+/* ── Clock ── */
+function updateClock() {
+  const now = new Date();
+  clockTime.textContent = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  clockDate.textContent = now.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+updateClock();
+setInterval(updateClock, 10000);
+
+/* ── Toast ── */
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+/* ── Touch / tap ── */
+let touchStartX = 0;
+let touchStartY = 0;
+
+slideshow.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+slideshow.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+    if (dx < 0) nextSlide(); else prevSlide();
+    startTimer();
+  } else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+    if (state.controlsVisible) {
+      controls.classList.add('hidden');
+      speedPopup.classList.remove('visible');
+      state.controlsVisible = false;
+    } else {
+      showControls();
+    }
+  }
+}, { passive: true });
+
+/* ── Buttons ── */
+$('btn-select-photos').addEventListener('click', () => fileInput.click());
+
+$('btn-add').addEventListener('click', () => {
+  fileInput.click();
+  showControls();
+});
+
+fileInput.addEventListener('change', e => {
+  loadFiles(e.target.files);
+  fileInput.value = '';
+});
+
+$('btn-prev').addEventListener('click', () => {
+  prevSlide();
+  startTimer();
+  showControls();
+});
+
+$('btn-next').addEventListener('click', () => {
+  nextSlide();
+  startTimer();
+  showControls();
+});
+
+$('btn-playpause').addEventListener('click', () => {
+  state.playing = !state.playing;
+  playpause.textContent = state.playing ? '⏸' : '▶';
+  if (state.playing) { startTimer(); showToast('Reproduzindo'); }
+  else { stopTimer(); showToast('Pausado'); }
+  showControls();
+});
+
+$('btn-speed').addEventListener('click', e => {
+  e.stopPropagation();
+  speedPopup.classList.toggle('visible');
+  showControls();
+});
+
+document.querySelectorAll('.speed-opt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.speed-opt').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.interval = parseInt(btn.dataset.s) * 1000;
+    speedPopup.classList.remove('visible');
+    startTimer();
+    showToast(`Intervalo: ${btn.dataset.s}s`);
+  });
+});
+
+/* Fechar popup ao tocar fora */
+document.addEventListener('click', () => speedPopup.classList.remove('visible'));
+
+/* Teclado (quando conectado via HDMI etc) */
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') { nextSlide(); startTimer(); }
+  if (e.key === 'ArrowLeft')  { prevSlide(); startTimer(); }
+  if (e.key === ' ') { $('btn-playpause').click(); }
+});
+
+/* Service Worker */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+/* Solicitar tela cheia em mobile ao iniciar */
+function requestFullscreen() {
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen();
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+}
+
+$('btn-select-photos').addEventListener('click', () => {
+  requestFullscreen();
+}, { once: true });
+</script>
+</body>
+</html>
