@@ -1,4 +1,4 @@
-name: Render Radar dos Games V3
+name: Render Radar dos Games V4
 
 on:
   push:
@@ -28,29 +28,29 @@ jobs:
       - name: Download official GTA VI screenshots
         working-directory: source/radar-dos-games-v2
         run: |
-          mkdir -p assets output_v3 work_v3
+          mkdir -p assets output_v4 work_v4
           wget --timeout=60 --tries=3 https://media-rockstargames-com.akamaized.net/VI/downloads/screenshots/GTAVI_Screenshots.zip -O /tmp/gta6.zip
           unzip -q /tmp/gta6.zip -d assets
           COUNT=$(find assets -type f | wc -l)
           echo "Official files downloaded: $COUNT"
           test "$COUNT" -ge 6
 
-      - name: Render V3 with multilingual Brazilian Portuguese voice
+      - name: Render V4 with information-rich visual system
         working-directory: source/radar-dos-games-v2
-        run: python3 build_v3.py
+        run: python3 build_v4.py
 
       - name: Inspect output
         working-directory: source/radar-dos-games-v2
         run: |
-          ls -lh output_v3
-          ffprobe -v error -show_entries format=duration,size -of default=nw=1 output_v3/gta6-10-coisas-confirmadas-v3-humanizado.mp4
-          cat output_v3/voice-info.txt
+          ls -lh output_v4
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 output_v4/gta6-10-coisas-confirmadas-v4-info-rich.mp4
+          cat output_v4/v4-info.txt
 
       - name: Upload package
         uses: actions/upload-artifact@v4
         with:
-          name: radar-dos-games-gta6-v3-humanizado
-          path: source/radar-dos-games-v2/output_v3/
+          name: radar-dos-games-gta6-v4-info-rich
+          path: source/radar-dos-games-v2/output_v4/
           retention-days: 7
 
-# trigger: humanized-multilingual-v3
+# trigger: info-rich-v4
