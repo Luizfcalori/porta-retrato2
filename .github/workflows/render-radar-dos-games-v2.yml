@@ -1,4 +1,4 @@
-name: Render Radar dos Games V4
+name: Render Radar dos Games V4.1
 
 on:
   push:
@@ -35,7 +35,19 @@ jobs:
           echo "Official files downloaded: $COUNT"
           test "$COUNT" -ge 6
 
-      - name: Render V4 with information-rich visual system
+      - name: Fix source label escaping
+        working-directory: source/radar-dos-games-v2
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('build_v4.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace("text='FONTE: ROCKSTAR GAMES'", "text='FONTE\\\\: ROCKSTAR GAMES'")
+          p.write_text(s, encoding='utf-8')
+          print('source label patched')
+          PY
+
+      - name: Render V4.1 with information-rich visual system
         working-directory: source/radar-dos-games-v2
         run: python3 build_v4.py
 
@@ -49,8 +61,8 @@ jobs:
       - name: Upload package
         uses: actions/upload-artifact@v4
         with:
-          name: radar-dos-games-gta6-v4-info-rich
+          name: radar-dos-games-gta6-v4-1-final
           path: source/radar-dos-games-v2/output_v4/
           retention-days: 7
 
-# trigger: info-rich-v4
+# trigger: source-label-fix-v4-1
