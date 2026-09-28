@@ -87,3 +87,5 @@ PY
           name: radar-dos-games-gta6-v2
           path: source/radar-dos-games-v2/output/
           retention-days: 7
+
+# trigger: 2026-09-28-v2
