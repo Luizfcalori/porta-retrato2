@@ -24,7 +24,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg unzip wget curl fonts-dejavu-core
 
-      - name: Prepare Piper neural PT-BR voice
+      - name: Prepare neural Brazilian Portuguese voice
         working-directory: source/radar-dos-games-v2
         run: |
           mkdir -p tools assets work output
@@ -37,38 +37,10 @@ jobs:
       - name: Download official GTA VI screenshots
         working-directory: source/radar-dos-games-v2
         run: |
-          set +e
-          wget -q --timeout=45 --tries=2 https://media-rockstargames-com.akamaized.net/VI/downloads/screenshots/GTAVI_Screenshots.zip -O /tmp/gta6.zip
-          ZIP_STATUS=$?
-          set -e
-          if [ "$ZIP_STATUS" -eq 0 ] && unzip -tq /tmp/gta6.zip >/dev/null 2>&1; then
-            unzip -q /tmp/gta6.zip -d assets
-          else
-            echo "Official ZIP unavailable, scraping current official screenshot URLs from Rockstar page"
-            python3 - <<'PY'
-import re, urllib.request
-from pathlib import Path
-html = urllib.request.urlopen('https://www.rockstargames.com/VI/media/screenshots', timeout=60).read().decode('utf-8','ignore')
-urls = re.findall(r'https?://[^"\\ ]+?\.(?:jpg|jpeg|png|webp)[^"\\ ]*', html)
-out = Path('assets/official'); out.mkdir(parents=True, exist_ok=True)
-seen=[]
-for u in urls:
-    u=u.replace('\\u0026','&').replace('\\/','/')
-    if 'rockstargames.com/VI/' not in u or u in seen: continue
-    seen.append(u)
-    try:
-        req=urllib.request.Request(u, headers={'User-Agent':'Mozilla/5.0'})
-        data=urllib.request.urlopen(req, timeout=30).read()
-        if len(data)>30000:
-            (out/f'{len(seen):03d}.jpg').write_bytes(data)
-    except Exception as e:
-        print('skip', e)
-    if len(list(out.glob('*'))) >= 30: break
-print('downloaded', len(list(out.glob('*'))))
-PY
-          fi
-          COUNT=$(find assets -type f \( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' -o -name '*.webp' \) | wc -l)
-          echo "Screenshots: $COUNT"
+          wget --timeout=60 --tries=3 https://media-rockstargames-com.akamaized.net/VI/downloads/screenshots/GTAVI_Screenshots.zip -O /tmp/gta6.zip
+          unzip -q /tmp/gta6.zip -d assets
+          COUNT=$(find assets -type f | wc -l)
+          echo "Official files downloaded: $COUNT"
           test "$COUNT" -ge 6
 
       - name: Render final video
@@ -88,4 +60,4 @@ PY
           path: source/radar-dos-games-v2/output/
           retention-days: 7
 
-# trigger: 2026-09-28-v2
+# trigger: fixed-yaml-v3
