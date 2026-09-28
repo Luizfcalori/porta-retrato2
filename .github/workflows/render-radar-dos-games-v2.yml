@@ -1,0 +1,89 @@
+name: Render Radar dos Games V2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/render-radar-dos-games-v2.yml'
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Radar dos Games source
+        uses: actions/checkout@v4
+        with:
+          repository: Luizfcalori/React
+          ref: radar-dos-games-v2
+          path: source
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg unzip wget curl fonts-dejavu-core
+
+      - name: Prepare Piper neural PT-BR voice
+        working-directory: source/radar-dos-games-v2
+        run: |
+          mkdir -p tools assets work output
+          wget -q https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz -O /tmp/piper.tar.gz
+          tar -xzf /tmp/piper.tar.gz -C tools
+          chmod +x tools/piper/piper
+          wget -q https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/cadu/medium/pt_BR-cadu-medium.onnx -O tools/pt_BR-cadu-medium.onnx
+          wget -q https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/cadu/medium/pt_BR-cadu-medium.onnx.json -O tools/pt_BR-cadu-medium.onnx.json
+
+      - name: Download official GTA VI screenshots
+        working-directory: source/radar-dos-games-v2
+        run: |
+          set +e
+          wget -q --timeout=45 --tries=2 https://media-rockstargames-com.akamaized.net/VI/downloads/screenshots/GTAVI_Screenshots.zip -O /tmp/gta6.zip
+          ZIP_STATUS=$?
+          set -e
+          if [ "$ZIP_STATUS" -eq 0 ] && unzip -tq /tmp/gta6.zip >/dev/null 2>&1; then
+            unzip -q /tmp/gta6.zip -d assets
+          else
+            echo "Official ZIP unavailable, scraping current official screenshot URLs from Rockstar page"
+            python3 - <<'PY'
+import re, urllib.request
+from pathlib import Path
+html = urllib.request.urlopen('https://www.rockstargames.com/VI/media/screenshots', timeout=60).read().decode('utf-8','ignore')
+urls = re.findall(r'https?://[^"\\ ]+?\.(?:jpg|jpeg|png|webp)[^"\\ ]*', html)
+out = Path('assets/official'); out.mkdir(parents=True, exist_ok=True)
+seen=[]
+for u in urls:
+    u=u.replace('\\u0026','&').replace('\\/','/')
+    if 'rockstargames.com/VI/' not in u or u in seen: continue
+    seen.append(u)
+    try:
+        req=urllib.request.Request(u, headers={'User-Agent':'Mozilla/5.0'})
+        data=urllib.request.urlopen(req, timeout=30).read()
+        if len(data)>30000:
+            (out/f'{len(seen):03d}.jpg').write_bytes(data)
+    except Exception as e:
+        print('skip', e)
+    if len(list(out.glob('*'))) >= 30: break
+print('downloaded', len(list(out.glob('*'))))
+PY
+          fi
+          COUNT=$(find assets -type f \( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' -o -name '*.webp' \) | wc -l)
+          echo "Screenshots: $COUNT"
+          test "$COUNT" -ge 6
+
+      - name: Render final video
+        working-directory: source/radar-dos-games-v2
+        run: python3 build_v2.py
+
+      - name: Inspect output
+        working-directory: source/radar-dos-games-v2
+        run: |
+          ls -lh output
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 output/gta6-10-coisas-confirmadas-v2.mp4
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: radar-dos-games-gta6-v2
+          path: source/radar-dos-games-v2/output/
+          retention-days: 7
