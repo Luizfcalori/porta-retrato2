@@ -1,0 +1,94 @@
+name: Radar dos Games - Teste Gameplay
+
+on:
+  push:
+    paths:
+      - '.github/workflows/radar-test-gameplay.yml'
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar FFmpeg e unzip
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg unzip curl
+
+      - name: Baixar video-base e clipes oficiais Rockstar
+        run: |
+          set -euxo pipefail
+          curl -L --fail --retry 3 -o base.mp4 'https://static.metricool.com/planner/202609/7133084-file-9538796210704384744.mp4'
+          curl -L --fail --retry 3 -o gtavi-videos.zip 'https://media-rockstargames-com.akamaized.net/VI/downloads/videos/GTAVI_Videos.zip'
+          mkdir -p official
+          unzip -q gtavi-videos.zip -d official
+          find official -type f | sort | sed -n '1,120p'
+
+      - name: Selecionar 3 clipes oficiais
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          vids=[p for p in Path('official').rglob('*') if p.suffix.lower() in {'.mp4','.mov','.m4v'}]
+          if len(vids) < 3:
+              raise SystemExit(f'Foram encontrados apenas {len(vids)} videos')
+          # Prefere clipes de Jason, Lucia e Trailer; cai para os primeiros se necessário.
+          picks=[]
+          for key in ['Jason','Lucia','Trailer 2','Trailer']:
+              for p in vids:
+                  if key.lower() in p.name.lower() and p not in picks:
+                      picks.append(p); break
+          for p in vids:
+              if p not in picks:
+                  picks.append(p)
+              if len(picks)>=3: break
+          for i,p in enumerate(picks[:3],1):
+              Path(f'clip{i}.path').write_text(str(p))
+              print(i,p)
+          PY
+
+      - name: Renderizar amostra 55s
+        run: |
+          set -euxo pipefail
+          C1=$(cat clip1.path)
+          C2=$(cat clip2.path)
+          C3=$(cat clip3.path)
+          ffmpeg -y \
+            -ss 0 -t 55 -i base.mp4 \
+            -stream_loop -1 -i "$C1" \
+            -stream_loop -1 -i "$C2" \
+            -stream_loop -1 -i "$C3" \
+            -filter_complex "\
+              [0:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1[base];\
+              [1:v]trim=duration=9,setpts=PTS-STARTPTS,scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,setsar=1[c1];\
+              [2:v]trim=duration=9,setpts=PTS-STARTPTS,scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,setsar=1[c2];\
+              [3:v]trim=duration=9,setpts=PTS-STARTPTS,scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,setsar=1[c3];\
+              [base][c1]overlay=enable='between(t,9,18)':shortest=1[tmp1];\
+              [tmp1][c2]overlay=enable='between(t,24,33)':shortest=1[tmp2];\
+              [tmp2][c3]overlay=enable='between(t,39,48)':shortest=1,\
+              drawbox=x=42:y=42:w=470:h=54:color=black@0.65:t=fill:enable='between(t,9,18)+between(t,24,33)+between(t,39,48)',\
+              drawtext=text='IMAGENS OFICIAIS • ROCKSTAR GAMES':x=60:y=57:fontsize=25:fontcolor=white:enable='between(t,9,18)+between(t,24,33)+between(t,39,48)',\
+              drawbox=x=70:y=h-175:w=520:h=92:color=black@0.62:t=fill:enable='between(t,24,33)',\
+              drawtext=text='GTA VI • MATERIAL OFICIAL':x=95:y=h-145:fontsize=38:fontcolor=white:enable='between(t,24,33)'[v]" \
+            -map '[v]' -map 0:a? \
+            -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p \
+            -c:a aac -b:a 192k -movflags +faststart \
+            radar-dos-games-teste-gameplay.mp4
+
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 radar-dos-games-teste-gameplay.mp4
+
+      - name: Gerar contato de verificacao
+        run: |
+          ffmpeg -y -i radar-dos-games-teste-gameplay.mp4 -vf "fps=1/10,scale=480:-1,tile=3x2" -frames:v 1 contato-teste.jpg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: radar-dos-games-teste-gameplay
+          path: |
+            radar-dos-games-teste-gameplay.mp4
+            contato-teste.jpg
+          retention-days: 7
