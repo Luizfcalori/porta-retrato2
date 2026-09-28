@@ -1,4 +1,4 @@
-name: Render Radar dos Games V2
+name: Render Radar dos Games V3
 
 on:
   push:
@@ -19,45 +19,38 @@ jobs:
           ref: radar-dos-games-v2
           path: source
 
-      - name: Install tools
+      - name: Install tools and natural neural voice client
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg unzip wget curl fonts-dejavu-core
-
-      - name: Prepare neural Brazilian Portuguese voice
-        working-directory: source/radar-dos-games-v2
-        run: |
-          mkdir -p tools assets work output
-          wget -q https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz -O /tmp/piper.tar.gz
-          tar -xzf /tmp/piper.tar.gz -C tools
-          chmod +x tools/piper/piper
-          wget -q https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/cadu/medium/pt_BR-cadu-medium.onnx -O tools/pt_BR-cadu-medium.onnx
-          wget -q https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/cadu/medium/pt_BR-cadu-medium.onnx.json -O tools/pt_BR-cadu-medium.onnx.json
+          python3 -m pip install --quiet --upgrade edge-tts
 
       - name: Download official GTA VI screenshots
         working-directory: source/radar-dos-games-v2
         run: |
+          mkdir -p assets output_v3 work_v3
           wget --timeout=60 --tries=3 https://media-rockstargames-com.akamaized.net/VI/downloads/screenshots/GTAVI_Screenshots.zip -O /tmp/gta6.zip
           unzip -q /tmp/gta6.zip -d assets
           COUNT=$(find assets -type f | wc -l)
           echo "Official files downloaded: $COUNT"
           test "$COUNT" -ge 6
 
-      - name: Render final video
+      - name: Render V3 with multilingual Brazilian Portuguese voice
         working-directory: source/radar-dos-games-v2
-        run: python3 build_v2.py
+        run: python3 build_v3.py
 
       - name: Inspect output
         working-directory: source/radar-dos-games-v2
         run: |
-          ls -lh output
-          ffprobe -v error -show_entries format=duration,size -of default=nw=1 output/gta6-10-coisas-confirmadas-v2.mp4
+          ls -lh output_v3
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 output_v3/gta6-10-coisas-confirmadas-v3-humanizado.mp4
+          cat output_v3/voice-info.txt
 
       - name: Upload package
         uses: actions/upload-artifact@v4
         with:
-          name: radar-dos-games-gta6-v2
-          path: source/radar-dos-games-v2/output/
+          name: radar-dos-games-gta6-v3-humanizado
+          path: source/radar-dos-games-v2/output_v3/
           retention-days: 7
 
-# trigger: fixed-yaml-v3
+# trigger: humanized-multilingual-v3
