@@ -24,7 +24,6 @@ jobs:
           curl -L --fail --retry 3 -o gtavi-videos.zip 'https://media-rockstargames-com.akamaized.net/VI/downloads/videos/GTAVI_Videos.zip'
           mkdir -p official selected
           unzip -q gtavi-videos.zip -d official
-          find official -type f | sort
 
       - name: Preparar clipes curtos variados
         run: |
@@ -42,6 +41,8 @@ jobs:
               if p not in picks:
                   picks.append(p)
               if len(picks)>=8: break
+          if len(picks) < 8:
+              raise SystemExit(f'Apenas {len(picks)} videos encontrados')
           for i,p in enumerate(picks[:8],1):
               Path(f'selected/src{i}.path').write_text(str(p))
               print(i,p)
@@ -51,23 +52,9 @@ jobs:
             ffmpeg -y -ss 0 -t 10 -i "$SRC" -vf "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,setsar=1" -an -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p "selected/clip${i}.mp4"
           done
 
-      - name: Criar contato visual
-        run: |
-          ffmpeg -y -i selected/clip1.mp4 -ss 2 -frames:v 1 a1.jpg
-          ffmpeg -y -i selected/clip2.mp4 -ss 2 -frames:v 1 a2.jpg
-          ffmpeg -y -i selected/clip3.mp4 -ss 2 -frames:v 1 a3.jpg
-          ffmpeg -y -i selected/clip4.mp4 -ss 2 -frames:v 1 a4.jpg
-          ffmpeg -y -i selected/clip5.mp4 -ss 2 -frames:v 1 a5.jpg
-          ffmpeg -y -i selected/clip6.mp4 -ss 2 -frames:v 1 a6.jpg
-          ffmpeg -y -i selected/clip7.mp4 -ss 2 -frames:v 1 a7.jpg
-          ffmpeg -y -i selected/clip8.mp4 -ss 2 -frames:v 1 a8.jpg
-          ffmpeg -y -i a1.jpg -i a2.jpg -i a3.jpg -i a4.jpg -i a5.jpg -i a6.jpg -i a7.jpg -i a8.jpg -filter_complex "[0:v]scale=320:180[a];[1:v]scale=320:180[b];[2:v]scale=320:180[c];[3:v]scale=320:180[d];[4:v]scale=320:180[e];[5:v]scale=320:180[f];[6:v]scale=320:180[g];[7:v]scale=320:180[h];[a][b][c][d]hstack=inputs=4[top];[e][f][g][h]hstack=inputs=4[bot];[top][bot]vstack=inputs=2[out]" -map '[out]' contact.jpg
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: radar-rockstar-clips
-          path: |
-            selected/clip*.mp4
-            contact.jpg
+          path: selected/clip*.mp4
           retention-days: 7
