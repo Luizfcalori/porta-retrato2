@@ -16,225 +16,116 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install lightweight tools
+      - name: Install render tools
         run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg fonts-dejavu-core
+          python -m pip install --disable-pip-version-check edge-tts
           ffmpeg -version | head -1
-          test -f /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
-          python -m pip install --disable-pip-version-check yt-dlp edge-tts
 
-      - name: Download official source videos and intro
+      - name: Download official Minecraft media and Radar intro
         run: |
           mkdir -p work out
-          yt-dlp --no-playlist --extractor-args "youtube:player_client=android" -f "bv*[height<=1080]+ba/b[height<=1080]" --merge-output-format mp4 -o "work/gameplay.%(ext)s" "https://www.youtube.com/watch?v=vBNE3bKMpu8"
-          yt-dlp --no-playlist --extractor-args "youtube:player_client=android" -f "bv*[height<=1080]+ba/b[height<=1080]" --merge-output-format mp4 -o "work/reveal.%(ext)s" "https://www.youtube.com/watch?v=vq5M47synfo"
-          curl -L --fail --retry 3 'https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-8de8-820e-9ad5-ad51dcb874b6/raw?se=2026-10-01T22%3A04%3A19Z&sp=r&sv=2026-02-06&sr=b&scid=e8165c4e-2291-52ae-8797-12ba38d8d2f0&skoid=33096a49-a96b-4506-9fc4-04a7517f8175&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-01T21%3A02%3A27Z&ske=2026-10-02T21%3A02%3A27Z&sks=b&skv=2026-02-06&sig=f10XZmgzgjK5s/xLKBj4RLFEcdF9s99FO5ty1Ddu3H8%3D' -o work/intro.mp4
+          curl -L --fail --retry 3 'https://www.minecraft.net/content/dam/minecraftnet/games/spicewood/key-art/MCD2_NetBlogEditorial_1170x500.jpg' -o work/img01.jpg
+          curl -L --fail --retry 3 'https://www.minecraft.net/content/dam/minecraftnet/games/spicewood/screenshots/MCL_Dungeons2_sift_1280x720.jpg' -o work/img02.jpg || cp work/img01.jpg work/img02.jpg
+          curl -L --fail --retry 2 'https://www.minecraft.net/content/dam/minecraftnet/games/spicewood/key-art/dungeons2launch_4.jpg' -o work/img03.jpg || cp work/img02.jpg work/img03.jpg
+          curl -L --fail --retry 2 'https://www.minecraft.net/content/dam/minecraftnet/games/spicewood/key-art/dungeons2launch_3.jpg' -o work/img04.jpg || cp work/img01.jpg work/img04.jpg
+          curl -L --fail --retry 2 'https://www.minecraft.net/content/dam/minecraftnet/games/spicewood/key-art/dungeons2launch_1.jpg' -o work/img05.jpg || cp work/img02.jpg work/img05.jpg
+          curl -L --fail --retry 2 'https://cms-assets.xboxservices.com/assets/30/58/3058c5d6-1db0-430a-9019-bb7e71ed5bee.jpg?n=54980885_Highlight-Feature-0_Launch-01_767x400.jpg' -o work/img06.jpg || cp work/img03.jpg work/img06.jpg
+          curl -L --fail --retry 2 'https://cms-assets.xboxservices.com/assets/99/fe/99fe5439-b34a-4073-aec7-867a0ee245c3.jpg?n=54980885_Highlight-Feature-0_Launch-02_767x400.jpg' -o work/img07.jpg || cp work/img04.jpg work/img07.jpg
+          curl -L --fail --retry 2 'https://cms-assets.xboxservices.com/assets/4f/21/4f21fe5a-db83-4cda-ae0f-0748ecce8ed0.jpg?n=54980885_Highlight-Feature-0_Launch-04_767x400.jpg' -o work/img08.jpg || cp work/img05.jpg work/img08.jpg
+          curl -L --fail --retry 2 'https://cms-assets.xboxservices.com/assets/1e/3d/1e3df4c6-ca26-4616-a43e-b42fa827b465.jpg?n=54980885_Highlight-Feature-0_Launch-05_767x400.jpg' -o work/img09.jpg || cp work/img02.jpg work/img09.jpg
+          curl -L --fail --retry 3 'https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-e0d4-820e-bea0-714852f05eae/raw?se=2026-10-01T22%3A15%3A42Z&sp=r&sv=2026-02-06&sr=b&scid=01a1258f-e830-5207-84eb-b1f587e2af14&skoid=33096a49-a96b-4506-9fc4-04a7517f8175&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-01T21%3A51%3A00Z&ske=2026-10-02T21%3A51%3A00Z&sks=b&skv=2026-02-06&sig=mcNWwZ2OD6N/uwhEx19mPmuXysfsxrX48lE4I7CCDTI%3D' -o work/intro.mp4
           ls -lh work
 
-      - name: Render full video, thumbnail and shorts
+      - name: Render long video thumbnail and three vertical shorts
         run: |
           cat > work/build.py <<'PY'
           import asyncio, subprocess
           from pathlib import Path
           import edge_tts
 
-          W = Path("work")
-          O = Path("out")
-          O.mkdir(exist_ok=True)
-          FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-          FONT_REG = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-          VOICE = "pt-BR-ThalitaMultilingualNeural"
-          RATE = "-3%"
-          PITCH = "-2Hz"
+          W=Path('work'); O=Path('out'); O.mkdir(exist_ok=True)
+          FONT='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+          FONT_REG='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+          VOICE='pt-BR-ThalitaMultilingualNeural'
+          RATE='-3%'; PITCH='-2Hz'
 
-          sections = [
-              ("A PRIMEIRA NOVA DIMENSÃO EM 14 ANOS",
-               "Minecraft acaba de ganhar uma das maiores novidades da sua história recente. A Mojang confirmou The Sift, uma nova dimensão que já pode ser explorada em Minecraft Dungeons 2 e que também vai chegar ao Minecraft principal. E não estamos falando de um simples bioma ou de uma atualização pequena. The Sift será a quarta dimensão oficial do universo Minecraft."),
-              ("O QUE É THE SIFT?",
-               "The Sift é uma dimensão vibrante, cheia de almas e conectada ao mundo por fendas misteriosas. Em Dungeons 2, essas fendas podem aparecer durante a exploração e transportar o jogador para áreas totalmente novas. A Mojang já mostrou regiões como Meadow e Carapace, com cenários bem diferentes do Overworld, do Nether e do End."),
-              ("POR QUE ISSO É TÃO GRANDE?",
-               "A última vez que Minecraft recebeu uma nova dimensão foi há mais de quatorze anos, quando o End passou a fazer parte do jogo. Desde então, o universo principal ficou dividido entre Overworld, Nether e End. Agora, The Sift entra oficialmente nessa lista e abre espaço para novas criaturas, estruturas, mecânicas e histórias."),
-              ("DUNGEONS 2 JÁ ESTÁ DISPONÍVEL",
-               "Minecraft Dungeons 2 foi lançado em vinte e nove de setembro de dois mil e vinte e seis para Steam, Xbox Series X e S, PlayStation 5, Nintendo Switch e Switch 2. Além da nova dimensão, o jogo traz um mundo interligado, novas missões, mais equipamentos e o retorno dos illagers, agora liderados pelo Illager High Council."),
-              ("E NO MINECRAFT NORMAL?",
-               "A parte mais importante para quem joga Minecraft Java ou Bedrock é esta: a Mojang confirmou que The Sift também vai chegar ao jogo principal no próximo ano. Durante o Minecraft Live, a empresa mostrou um primeiro vislumbre da dimensão e até uma das criaturas que vivem por lá. Então não é rumor, mod ou conceito de fã. É conteúdo oficial."),
-              ("O QUE PODE MUDAR NO JOGO?",
-               "Uma quarta dimensão pode mudar bastante a exploração de Minecraft. Novos portais podem significar novos materiais, inimigos, estruturas e sistemas exclusivos. A Mojang ainda não revelou todos os detalhes da versão para Java e Bedrock, então vale separar o que já foi confirmado do que ainda é especulação. Mas uma coisa é certa: The Sift é uma das maiores expansões do universo Minecraft em muitos anos."),
-              ("CURTIU A NOVIDADE?",
-               "E aí, você acha que The Sift tem potencial para ficar no mesmo nível do Nether e do End? Conta pra gente nos comentários. Se gostou do vídeo, deixe seu like e não esqueça de se inscrever no Radar dos Games para acompanhar mais notícias, lançamentos e novidades do mundo dos games.")
-          ]
-
-          shorts = [
-              ("MINECRAFT GANHOU UMA NOVA DIMENSÃO!",
-               "Depois de mais de quatorze anos, Minecraft finalmente tem uma nova dimensão oficial. Ela se chama The Sift, já apareceu em Minecraft Dungeons 2 e foi confirmada para chegar ao Minecraft Java e Bedrock no próximo ano. É a quarta dimensão, ao lado do Overworld, Nether e End. Assista ao vídeo completo no Radar dos Games."),
-              ("O QUE É THE SIFT?",
-               "The Sift é a nova dimensão de Minecraft. Ela é vibrante, cheia de almas e acessada por fendas misteriosas em Minecraft Dungeons 2. A Mojang já mostrou regiões como Meadow e Carapace, além de novas criaturas. E o mais importante: ela também vai chegar ao Minecraft principal."),
-              ("NÃO É RUMOR: VAI CHEGAR AO MINECRAFT NORMAL",
-               "Se você achou que The Sift era exclusiva de Minecraft Dungeons 2, atenção. A Mojang confirmou no Minecraft Live que a nova dimensão chega ao Minecraft Java e Bedrock no próximo ano. Pela primeira vez em mais de quatorze anos, o jogo principal vai ganhar uma quarta dimensão oficial. Siga o Radar dos Games para mais novidades.")
-          ]
+          sections=[
+            ('A PRIMEIRA NOVA DIMENSÃO EM 14 ANOS','Minecraft acaba de ganhar uma das maiores novidades da sua história recente. A Mojang confirmou The Sift, uma nova dimensão que já pode ser explorada em Minecraft Dungeons 2 e que também vai chegar ao Minecraft principal. E não estamos falando de um simples bioma ou de uma atualização pequena. The Sift será a quarta dimensão oficial do universo Minecraft.'),
+            ('O QUE É THE SIFT?','The Sift é uma dimensão vibrante, cheia de almas e conectada ao mundo por fendas misteriosas. Em Dungeons 2, essas fendas podem aparecer durante a exploração e transportar o jogador para áreas totalmente novas. A Mojang já mostrou regiões como Meadow e Carapace, com cenários bem diferentes do Overworld, do Nether e do End.'),
+            ('POR QUE ISSO É TÃO GRANDE?','A última vez que Minecraft recebeu uma nova dimensão foi há mais de quatorze anos, quando o End passou a fazer parte do jogo. Desde então, o universo principal ficou dividido entre Overworld, Nether e End. Agora, The Sift entra oficialmente nessa lista e abre espaço para novas criaturas, estruturas, mecânicas e histórias.'),
+            ('DUNGEONS 2 JÁ ESTÁ DISPONÍVEL','Minecraft Dungeons 2 foi lançado em vinte e nove de setembro de dois mil e vinte e seis para Steam, Xbox Series X e S, PlayStation 5, Nintendo Switch e Switch 2. Além da nova dimensão, o jogo traz um mundo interligado, novas missões, mais equipamentos e o retorno dos illagers, agora liderados pelo Illager High Council.'),
+            ('E NO MINECRAFT NORMAL?','A parte mais importante para quem joga Minecraft Java ou Bedrock é esta: a Mojang confirmou que The Sift também vai chegar ao jogo principal no próximo ano. Durante o Minecraft Live, a empresa mostrou um primeiro vislumbre da dimensão e até uma das criaturas que vivem por lá. Então não é rumor, mod ou conceito de fã. É conteúdo oficial.'),
+            ('O QUE PODE MUDAR NO JOGO?','Uma quarta dimensão pode mudar bastante a exploração de Minecraft. Novos portais podem significar novos materiais, inimigos, estruturas e sistemas exclusivos. A Mojang ainda não revelou todos os detalhes da versão para Java e Bedrock, então vale separar o que já foi confirmado do que ainda é especulação. Mas uma coisa é certa: The Sift é uma das maiores expansões do universo Minecraft em muitos anos.'),
+            ('CURTIU A NOVIDADE?','E aí, você acha que The Sift tem potencial para ficar no mesmo nível do Nether e do End? Conta pra gente nos comentários. Se gostou do vídeo, deixe seu like e não esqueça de se inscrever no Radar dos Games para acompanhar mais notícias, lançamentos e novidades do mundo dos games.')]
+          shorts=[
+            ('MINECRAFT GANHOU UMA NOVA DIMENSÃO!','Depois de mais de quatorze anos, Minecraft finalmente tem uma nova dimensão oficial. Ela se chama The Sift, já apareceu em Minecraft Dungeons 2 e foi confirmada para chegar ao Minecraft Java e Bedrock no próximo ano. É a quarta dimensão, ao lado do Overworld, Nether e End. Assista ao vídeo completo no Radar dos Games.'),
+            ('O QUE É THE SIFT?','The Sift é a nova dimensão de Minecraft. Ela é vibrante, cheia de almas e acessada por fendas misteriosas em Minecraft Dungeons 2. A Mojang já mostrou regiões como Meadow e Carapace, além de novas criaturas. E o mais importante: ela também vai chegar ao Minecraft principal.'),
+            ('NÃO É RUMOR: VAI CHEGAR AO MINECRAFT NORMAL','Se você achou que The Sift era exclusiva de Minecraft Dungeons 2, atenção. A Mojang confirmou no Minecraft Live que a nova dimensão chega ao Minecraft Java e Bedrock no próximo ano. Pela primeira vez em mais de quatorze anos, o jogo principal vai ganhar uma quarta dimensão oficial. Siga o Radar dos Games para mais novidades.')]
 
           def run(cmd):
-              print("+", " ".join(map(str, cmd)), flush=True)
-              subprocess.run([str(x) for x in cmd], check=True)
+            print('+',' '.join(map(str,cmd)),flush=True); subprocess.run([str(x) for x in cmd],check=True)
+          def dur(p):
+            return float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',str(p)],text=True).strip())
+          async def synth(text,out):
+            await edge_tts.Communicate(text,VOICE,rate=RATE,pitch=PITCH).save(str(out))
+          async def make_voice():
+            for i,(_,txt) in enumerate(sections,1):
+              mp3=W/f'sec{i}.mp3'; wav=W/f'sec{i}.wav'; await synth(txt,mp3)
+              run(['ffmpeg','-y','-i',mp3,'-af','acompressor=threshold=-18dB:ratio=2.5:attack=15:release=180,loudnorm=I=-16:LRA=7:TP=-1.5','-ar','48000','-ac','2',wav])
+            for i,(_,txt) in enumerate(shorts,1):
+              mp3=W/f'short{i}.mp3'; wav=W/f'short{i}.wav'; await synth(txt,mp3)
+              run(['ffmpeg','-y','-i',mp3,'-af','acompressor=threshold=-18dB:ratio=2.5:attack=15:release=180,loudnorm=I=-16:LRA=7:TP=-1.5','-ar','48000','-ac','2',wav])
+          asyncio.run(make_voice())
 
-          def duration(path):
-              out = subprocess.check_output([
-                  "ffprobe","-v","error","-show_entries","format=duration",
-                  "-of","default=noprint_wrappers=1:nokey=1",str(path)
-              ], text=True).strip()
-              return float(out)
+          imgs=[W/'img02.jpg',W/'img06.jpg',W/'img08.jpg',W/'img03.jpg',W/'img02.jpg',W/'img07.jpg',W/'img05.jpg']
+          segs=[]
+          for i,((title,_),img) in enumerate(zip(sections,imgs),1):
+            audio=W/f'sec{i}.wav'; d=dur(audio); out=W/f'seg{i}.mp4'; tf=W/f'title{i}.txt'; tf.write_text(title,encoding='utf-8')
+            fade=max(0,d-0.45)
+            motion="zoompan=z='min(zoom+0.00045,1.10)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1920x1080:fps=30"
+            vf=(f"scale=2100:1182:force_original_aspect_ratio=increase,crop=2100:1182,{motion},"
+                f"drawbox=x=0:y=820:w=1920:h=260:color=black@0.45:t=fill,"
+                f"drawtext=fontfile={FONT}:text='RADAR DOS GAMES':fontcolor=white:fontsize=28:x=48:y=40:box=1:boxcolor=black@0.60:boxborderw=12,"
+                f"drawtext=fontfile={FONT}:textfile={tf.resolve()}:fontcolor=white:fontsize=46:x=72:y=865:box=1:boxcolor=black@0.50:boxborderw=12,"
+                f"drawtext=fontfile={FONT_REG}:text='FONTE: MINECRAFT / MOJANG / XBOX':fontcolor=white@0.72:fontsize=19:x=w-tw-45:y=h-th-32,"
+                f"fade=t=in:st=0:d=0.35,fade=t=out:st={fade:.3f}:d=0.45")
+            run(['ffmpeg','-y','-loop','1','-i',img,'-i',audio,'-t',f'{d:.3f}','-vf',vf,'-map','0:v:0','-map','1:a:0','-c:v','libx264','-preset','medium','-crf','22','-pix_fmt','yuv420p','-r','30','-c:a','aac','-b:a','160k','-ar','48000','-ac','2',out])
+            segs.append(out)
+          with open(W/'bodylist.txt','w') as f:
+            for p in segs: f.write(f"file '{p.resolve()}'\n")
+          run(['ffmpeg','-y','-f','concat','-safe','0','-i',W/'bodylist.txt','-c','copy',W/'body.mp4'])
 
-          def esc(s):
-              return (s.replace("\\","\\\\").replace(":","\\:")
-                       .replace("'","\\'").replace("%","\\%"))
+          run(['ffmpeg','-y','-i',W/'intro.mp4','-vf','scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30','-c:v','libx264','-preset','medium','-crf','22','-pix_fmt','yuv420p','-c:a','aac','-b:a','160k','-ar','48000','-ac','2',W/'intro_norm.mp4'])
+          with open(W/'finallist.txt','w') as f:
+            f.write(f"file '{(W/'intro_norm.mp4').resolve()}'\nfile '{(W/'body.mp4').resolve()}'\n")
+          run(['ffmpeg','-y','-f','concat','-safe','0','-i',W/'finallist.txt','-c:v','libx264','-preset','medium','-crf','22','-pix_fmt','yuv420p','-c:a','aac','-b:a','160k','-movflags','+faststart',O/'Radar_dos_Games_Minecraft_The_Sift_FINAL.mp4'])
 
-          async def synth(text, out):
-              await edge_tts.Communicate(text, VOICE, rate=RATE, pitch=PITCH).save(str(out))
+          thumb=(f"scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,drawbox=x=0:y=0:w=1280:h=720:color=black@0.23:t=fill,"
+                 f"drawtext=fontfile={FONT}:text='MINECRAFT TEM':fontcolor=white:fontsize=62:x=55:y=105:box=1:boxcolor=black@0.62:boxborderw=15,"
+                 f"drawtext=fontfile={FONT}:text='NOVA DIMENSÃO!':fontcolor=0x67F4FF:fontsize=70:x=55:y=215:box=1:boxcolor=black@0.65:boxborderw=15,"
+                 f"drawtext=fontfile={FONT}:text='1ª EM +14 ANOS':fontcolor=yellow:fontsize=44:x=60:y=345:box=1:boxcolor=black@0.70:boxborderw=12")
+          run(['ffmpeg','-y','-i',W/'img02.jpg','-frames:v','1','-vf',thumb,'-q:v','2',O/'Minecraft_The_Sift_Thumbnail.jpg'])
 
-          async def generate_tts():
-              for i,(_,text) in enumerate(sections,1):
-                  mp3=W/f"sec{i:02d}.mp3"; wav=W/f"sec{i:02d}.wav"
-                  await synth(text,mp3)
-                  run(["ffmpeg","-y","-i",mp3,"-af","loudnorm=I=-16:LRA=7:TP=-1.5",
-                       "-ar","48000","-ac","2",wav])
-              for i,(_,text) in enumerate(shorts,1):
-                  mp3=W/f"short{i}.mp3"; wav=W/f"short{i}.wav"
-                  await synth(text,mp3)
-                  run(["ffmpeg","-y","-i",mp3,"-af","loudnorm=I=-16:LRA=7:TP=-1.5",
-                       "-ar","48000","-ac","2",wav])
+          simgs=[W/'img02.jpg',W/'img06.jpg',W/'img08.jpg']
+          stitles=['MINECRAFT GANHOU\\nUMA NOVA DIMENSÃO!','O QUE É\\nTHE SIFT?','VAI CHEGAR AO\\nMINECRAFT NORMAL!']
+          ssubs=['THE SIFT • 4ª DIMENSÃO OFICIAL','FENDAS • ALMAS • NOVAS REGIÕES','JAVA + BEDROCK • CONFIRMADO']
+          for i,(img,title,sub) in enumerate(zip(simgs,stitles,ssubs),1):
+            a=W/f'short{i}.wav'; d=dur(a); out=O/f'Radar_dos_Games_Minecraft_The_Sift_SHORT_{i}.mp4'
+            fc=(f"[0:v]scale=1350:760:force_original_aspect_ratio=increase,crop=1350:760,zoompan=z='min(zoom+0.0007,1.08)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1280x720:fps=30[move];"
+                f"[move]split=2[b][f];[b]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=28:14,eq=brightness=-0.22[bg];"
+                f"[f]scale=1020:574[fg];[bg][fg]overlay=(W-w)/2:550[base];"
+                f"[base]drawtext=fontfile={FONT}:text='RADAR DOS GAMES':fontcolor=white:fontsize=34:x=55:y=70:box=1:boxcolor=black@0.72:boxborderw=12,"
+                f"drawtext=fontfile={FONT}:text='{title}':fontcolor=white:fontsize=62:x=(w-text_w)/2:y=185:line_spacing=8:box=1:boxcolor=black@0.72:boxborderw=18,"
+                f"drawtext=fontfile={FONT}:text='{sub}':fontcolor=0x67F4FF:fontsize=36:x=(w-text_w)/2:y=1225:box=1:boxcolor=black@0.72:boxborderw=13,"
+                f"drawtext=fontfile={FONT_REG}:text='VÍDEO COMPLETO NO CANAL':fontcolor=white:fontsize=32:x=(w-text_w)/2:y=1510:box=1:boxcolor=black@0.65:boxborderw=11,"
+                f"drawtext=fontfile={FONT}:text='RADAR DOS GAMES':fontcolor=yellow:fontsize=42:x=(w-text_w)/2:y=1575:box=1:boxcolor=black@0.68:boxborderw=12[v]")
+            run(['ffmpeg','-y','-loop','1','-i',img,'-i',a,'-t',f'{d:.3f}','-filter_complex',fc,'-map','[v]','-map','1:a:0','-c:v','libx264','-preset','medium','-crf','22','-pix_fmt','yuv420p','-r','30','-c:a','aac','-b:a','160k','-ar','48000','-ac','2','-movflags','+faststart',out])
 
-          asyncio.run(generate_tts())
-
-          for src,out in [("gameplay.mp4","gameplay_norm.mp4"),("reveal.mp4","reveal_norm.mp4")]:
-              run(["ffmpeg","-y","-i",W/src,
-                   "-vf","scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30",
-                   "-an","-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p",W/out])
-
-          chunks=[
-              ("gameplay_norm.mp4",2,24),
-              ("reveal_norm.mp4",8,22),
-              ("gameplay_norm.mp4",30,26),
-              ("reveal_norm.mp4",34,24),
-              ("gameplay_norm.mp4",58,28),
-              ("reveal_norm.mp4",60,24),
-              ("gameplay_norm.mp4",88,28),
-              ("reveal_norm.mp4",14,26),
-          ]
-          chunk_files=[]
-          for idx,(src,start,length) in enumerate(chunks):
-              out=W/f"chunk{idx:02d}.mp4"
-              fadeout=max(0.1,length-0.30)
-              run(["ffmpeg","-y","-stream_loop","-1","-ss",str(start),"-i",W/src,
-                   "-t",str(length),"-vf",f"fade=t=in:st=0:d=0.30,fade=t=out:st={fadeout}:d=0.30",
-                   "-an","-c:v","libx264","-preset","veryfast","-crf","20","-pix_fmt","yuv420p",out])
-              chunk_files.append(out)
-          with open(W/"chunks.txt","w",encoding="utf-8") as f:
-              for p in chunk_files: f.write(f"file '{p.resolve()}'\n")
-          run(["ffmpeg","-y","-f","concat","-safe","0","-i",W/"chunks.txt","-c","copy",W/"broll.mp4"])
-
-          with open(W/"audio.txt","w",encoding="utf-8") as f:
-              for i in range(1,len(sections)+1):
-                  f.write(f"file '{(W/f'sec{i:02d}.wav').resolve()}'\n")
-          run(["ffmpeg","-y","-f","concat","-safe","0","-i",W/"audio.txt","-c:a","pcm_s16le",W/"narration.wav"])
-          narr_dur=duration(W/"narration.wav")
-          sec_durs=[duration(W/f"sec{i:02d}.wav") for i in range(1,len(sections)+1)]
-          starts=[]; cur=0.0
-          for d in sec_durs:
-              starts.append(cur); cur+=d
-
-          vf=[
-              f"drawtext=fontfile={FONT}:text='RADAR DOS GAMES':fontcolor=white:fontsize=26:x=45:y=38:box=1:boxcolor=0x00000099:boxborderw=12",
-              f"drawtext=fontfile={FONT_REG}:text='IMAGENS OFICIAIS - MINECRAFT / XBOX':fontcolor=white@0.72:fontsize=18:x=w-tw-42:y=h-th-32"
-          ]
-          for (title,_),st,d in zip(sections,starts,sec_durs):
-              end=min(st+5.2,st+d)
-              vf.append(
-                  f"drawtext=fontfile={FONT}:text='{esc(title)}':fontcolor=white:fontsize=42:"
-                  f"x=70:y=h-190:box=1:boxcolor=0x000000AA:boxborderw=18:enable='between(t,{st:.3f},{end:.3f})'"
-              )
-          vf_str=",".join(vf)
-          run(["ffmpeg","-y","-stream_loop","-1","-i",W/"broll.mp4","-i",W/"narration.wav",
-               "-t",f"{narr_dur:.3f}","-vf",vf_str,"-map","0:v:0","-map","1:a:0",
-               "-c:v","libx264","-preset","medium","-crf","19","-pix_fmt","yuv420p","-r","30",
-               "-c:a","aac","-b:a","192k","-ar","48000","-ac","2","-movflags","+faststart",W/"body.mp4"])
-
-          run(["ffmpeg","-y","-i",W/"intro.mp4",
-               "-vf","scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30",
-               "-c:v","libx264","-preset","medium","-crf","19","-pix_fmt","yuv420p",
-               "-c:a","aac","-b:a","192k","-ar","48000","-ac","2",W/"intro_norm.mp4"])
-          with open(W/"final_list.txt","w",encoding="utf-8") as f:
-              f.write(f"file '{(W/'intro_norm.mp4').resolve()}'\n")
-              f.write(f"file '{(W/'body.mp4').resolve()}'\n")
-          run(["ffmpeg","-y","-f","concat","-safe","0","-i",W/"final_list.txt",
-               "-c:v","libx264","-preset","medium","-crf","19","-pix_fmt","yuv420p",
-               "-c:a","aac","-b:a","192k","-movflags","+faststart",
-               O/"Radar_dos_Games_Minecraft_The_Sift_FINAL.mp4"])
-
-          thumb_filter=(
-              "scale=1280:720,"
-              "drawbox=x=0:y=0:w=1280:h=720:color=black@0.30:t=fill,"
-              f"drawtext=fontfile={FONT}:text='MINECRAFT TEM':fontcolor=white:fontsize=68:x=60:y=120:box=1:boxcolor=0x00000088:boxborderw=16,"
-              f"drawtext=fontfile={FONT}:text='NOVA DIMENSÃO!':fontcolor=0x69f0ff:fontsize=72:x=60:y=230:box=1:boxcolor=0x00000088:boxborderw=16,"
-              f"drawtext=fontfile={FONT}:text='1ª EM +14 ANOS':fontcolor=yellow:fontsize=42:x=65:y=365:box=1:boxcolor=0x000000AA:boxborderw=12,"
-              f"drawtext=fontfile={FONT}:text='RADAR DOS GAMES':fontcolor=white:fontsize=26:x=60:y=640:box=1:boxcolor=0x000000AA:boxborderw=10"
-          )
-          run(["ffmpeg","-y","-ss","34","-i",W/"gameplay_norm.mp4","-frames:v","1",
-               "-vf",thumb_filter,"-q:v","2",O/"Minecraft_The_Sift_Thumbnail.jpg"])
-
-          short_specs=[
-              ("gameplay_norm.mp4",6,"MINECRAFT GANHOU\\nUMA NOVA DIMENSÃO!","THE SIFT • 4ª DIMENSÃO OFICIAL"),
-              ("gameplay_norm.mp4",42,"O QUE É\\nTHE SIFT?","FENDAS • ALMAS • NOVAS REGIÕES"),
-              ("reveal_norm.mp4",18,"VAI CHEGAR AO\\nMINECRAFT NORMAL!","JAVA + BEDROCK • CONFIRMADO")
-          ]
-          for i,(src,start,title,sub) in enumerate(short_specs,1):
-              audio=W/f"short{i}.wav"; sd=duration(audio)
-              title_e=esc(title); sub_e=esc(sub)
-              filt=(
-                  "[0:v]split=2[bgsrc][fgsrc];"
-                  "[bgsrc]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
-                  "boxblur=24:12,eq=brightness=-0.12[bg];"
-                  "[fgsrc]scale=1020:574:force_original_aspect_ratio=decrease[fg];"
-                  "[bg][fg]overlay=(W-w)/2:520[base];"
-                  f"[base]drawtext=fontfile={FONT}:text='RADAR DOS GAMES':fontcolor=white:fontsize=34:"
-                  "x=54:y=70:box=1:boxcolor=0x000000A0:boxborderw=12,"
-                  f"drawtext=fontfile={FONT}:text='{title_e}':fontcolor=white:fontsize=62:"
-                  "x=(w-text_w)/2:y=180:line_spacing=8:box=1:boxcolor=0x000000A5:boxborderw=18,"
-                  f"drawtext=fontfile={FONT}:text='{sub_e}':fontcolor=0x69f0ff:fontsize=38:"
-                  "x=(w-text_w)/2:y=1210:box=1:boxcolor=0x000000A5:boxborderw=14,"
-                  f"drawtext=fontfile={FONT_REG}:text='Assista ao vídeo completo no canal':fontcolor=white:fontsize=34:"
-                  "x=(w-text_w)/2:y=1505:box=1:boxcolor=0x00000099:boxborderw=12,"
-                  f"drawtext=fontfile={FONT}:text='RADAR DOS GAMES':fontcolor=yellow:fontsize=42:"
-                  "x=(w-text_w)/2:y=1570:box=1:boxcolor=0x00000099:boxborderw=12[v]"
-              )
-              run(["ffmpeg","-y","-stream_loop","-1","-ss",str(start),"-i",W/src,"-i",audio,
-                   "-t",f"{sd:.3f}","-filter_complex",filt,"-map","[v]","-map","1:a:0",
-                   "-c:v","libx264","-preset","medium","-crf","20","-pix_fmt","yuv420p","-r","30",
-                   "-c:a","aac","-b:a","160k","-ar","48000","-ac","2","-movflags","+faststart",
-                   O/f"Radar_dos_Games_Minecraft_The_Sift_SHORT_{i}.mp4"])
-
-          metadata = """TÍTULO
-          MINECRAFT GANHOU UMA NOVA DIMENSÃO! 😱 The Sift explicado
-
-          DESCRIÇÃO
-          Depois de mais de 14 anos, o universo Minecraft ganhou uma nova dimensão oficial: The Sift.
-          Ela já pode ser explorada em Minecraft Dungeons II e a Mojang confirmou que também chega ao Minecraft Java e Bedrock no próximo ano.
-
-          Neste vídeo do Radar dos Games:
-          • O que é The Sift
-          • Por que ela é a quarta dimensão oficial
-          • O que muda em Minecraft Dungeons II
-          • O que já foi confirmado para Java e Bedrock
-          • O que ainda é especulação
-
-          Fontes oficiais: Minecraft / Mojang Studios / Xbox.
-          #Minecraft #TheSift #MinecraftDungeons2 #Mojang #RadarDosGames
-
-          TAGS
-          Minecraft, The Sift, Minecraft nova dimensão, Minecraft Dungeons II, Minecraft Dungeons 2, Mojang, Minecraft Live 2026, Minecraft Java, Minecraft Bedrock, Radar dos Games
-          """
-          (O/"metadata.txt").write_text(metadata,encoding="utf-8")
-          print("DONE")
-          for p in O.iterdir():
-              print(p, p.stat().st_size)
+          (O/'metadata.txt').write_text('''TÍTULO\nMINECRAFT GANHOU UMA NOVA DIMENSÃO! 😱 The Sift explicado\n\nDESCRIÇÃO\nDepois de mais de 14 anos, Minecraft ganhou uma nova dimensão oficial: The Sift. Ela já pode ser explorada em Minecraft Dungeons II e a Mojang confirmou que também chegará ao Minecraft Java e Bedrock no próximo ano.\n\nNeste vídeo do Radar dos Games: o que é The Sift, por que ela é a quarta dimensão oficial, o que muda em Dungeons II e o que já foi confirmado para Java e Bedrock.\n\nFontes oficiais: Minecraft / Mojang Studios / Xbox.\n#Minecraft #TheSift #MinecraftDungeons2 #Mojang #RadarDosGames\n\nTAGS\nMinecraft, The Sift, Minecraft nova dimensão, Minecraft Dungeons II, Mojang, Minecraft Live 2026, Minecraft Java, Minecraft Bedrock, Radar dos Games''',encoding='utf-8')
+          print('DONE')
+          for p in O.iterdir(): print(p,p.stat().st_size)
           PY
           python work/build.py
 
